@@ -86,7 +86,7 @@ RUN pwsh \
     -Command " \
     \$ErrorActionPreference = 'Stop' ; \
     \$ProgressPreference = 'SilentlyContinue' ; \
-    ForEach (\$file in (Get-ChildItem \$HOME/enterprise-certs)) {  \
+    ForEach (\$file in (Get-ChildItem \$HOME/enterprise-certs -exclude *.md)) {  \
     Write-Host \"Moving \$(\$file.FileName) to /usr/local/share/ca-certificates\" ; \
     Copy-Item \$file -Destination \"/usr/local/share/ca-certificates/\$(\$file.BaseName).crt\" -force -confirm:\$false; \
     }; \
