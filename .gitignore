@@ -1,4 +1,5 @@
 /**/HPOneView.*/*
 /.vscode/*
-/**/enterprise-certs/*
+*.cer
+*.crt
 .bak/*

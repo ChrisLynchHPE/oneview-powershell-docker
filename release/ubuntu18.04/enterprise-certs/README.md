@@ -1,0 +1,2 @@
+# Enterprise Certificates
+Place your enterprise certificate authority Base63 CER format certificates, with the .crt file extention.  Files placed here will be copied into the Docker image, and added to the image local CA store.
