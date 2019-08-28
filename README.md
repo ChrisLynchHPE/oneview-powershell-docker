@@ -12,7 +12,7 @@ Please follow [Docker's official instructions][install] to install `docker` corr
 
 The container images derive from Microsoft's official distribution images, such as `ubuntu:18.04`, install dependancies for PowerShell Core, then the HPE OneView 5.00 or newer library from the PowerShell Gallery.
 
-These containers live at [hub.docker.com/u/chrislynchhpe]
+These containers live at https://hub.docker.com/u/chrislynchhpe
 
 * [Ubuntu 18.04/bionic][docker-ubuntu-release]
 
