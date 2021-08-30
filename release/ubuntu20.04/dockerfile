@@ -1,0 +1,121 @@
+# Dockerfile originally created by Microsoft from:
+
+# Docker image file that describes an Ubuntu20.04 image with PowerShell installed from Microsoft APT Repo
+ARG fromTag=20.04
+ARG imageRepo=ubuntu
+FROM ${imageRepo}:${fromTag} AS installer-env
+
+################################################################################################################
+## Setup variables for HPE Oneview Versions.
+## Change these to the the desired HPE OneView Major and Minor Versions.
+## Default setting below is 5.50.
+## Current options (as of Aug 2021) are: 5.50, 6.00, 6.10
+## Not using an accepted version will cause the build to fail during the git command:
+## => [ 6/10] RUN git clone . . . .
+## For other options see https://github.com/HewlettPackard/POSH-HPEOneView#build-status for proper entries here.
+ENV HPE_ONEVIEW_MAJOR_VERSION=5
+ENV HPE_ONEVIEW_MINOR_VERSION=50
+## End Variable entries.
+################################################################################################################
+
+## Do not change these - this sets up usage in branch pull and folder names and LABELS later
+ENV HPE_ONEVIEW_BRANCH=$HPE_ONEVIEW_MAJOR_VERSION.$HPE_ONEVIEW_MINOR_VERSION
+ENV HPE_ONEVIEW_MODULE_SUFFIX=$HPE_ONEVIEW_MAJOR_VERSION$HPE_ONEVIEW_MINOR_VERSION
+
+# Setup Powershell version
+ARG PS_VERSION=7.1.4
+ARG PS_PACKAGE=powershell_${PS_VERSION}-1.ubuntu.20.04_amd64.deb
+ARG PS_PACKAGE_URL=https://github.com/PowerShell/PowerShell/releases/download/v${PS_VERSION}/${PS_PACKAGE}
+
+RUN echo ${PS_PACKAGE_URL}
+
+# Download the Linux package and save it
+ADD ${PS_PACKAGE_URL} /tmp/powershell.deb
+
+# Define ENVs for Localization/Globalization
+ENV DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=false \
+    LC_ALL=en_US.UTF-8 \
+    LANG=en_US.UTF-8 \
+    # set a fixed location for the Module analysis cache
+    PSModuleAnalysisCachePath=/var/cache/microsoft/powershell/PSModuleAnalysisCache/ModuleAnalysisCache
+
+# Install dependencies and clean up
+RUN apt-get update \
+    && apt-get install -y /tmp/powershell.deb \
+    && apt-get install -y \
+    # less is required for help in powershell
+    less \
+    # required for copying down oneview-powershell later
+    git \
+    # requied to setup the locale
+    locales \
+    # required for SSL
+    ca-certificates \
+    gss-ntlmssp \
+    && apt-get dist-upgrade -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* \
+    && locale-gen $LANG && update-locale \
+    # remove powershell package
+    && rm /tmp/powershell.deb \
+    # intialize powershell module cache
+    && pwsh \
+    -NoLogo \
+    -NoProfile \
+    -Command " \
+    \$ErrorActionPreference = 'Stop' ; \
+    \$ProgressPreference = 'SilentlyContinue' ; \
+    while(!(Test-Path -Path \$env:PSModuleAnalysisCachePath)) {  \
+    Write-Host "'Waiting for $env:PSModuleAnalysisCachePath'" ; \
+    Start-Sleep -Seconds 6 ; \
+    }"
+
+# Define args needed only for the labels
+ARG VCS_REF="none"
+ARG IMAGE_NAME=chrislynchhpe/oneview-powershell:ubuntu20.04
+
+LABEL maintainer="Chris Lynch chris.lynch@hpe.com" \
+    readme.md="https://github.com/ChrisLynchHPE/oneview-powershell-docker/blob/master/docker/README.md" \
+    description="This Dockerfile will install the latest release of PowerShell and HPE OneView PowerShell ${HPE_ONEVIEW_MODULE_SUFFIX} library for Ubuntu 20.04." \
+    org.label-schema.usage="https://github.com/ChrisLynchHPE/oneview-powershell-docker/blob/master/docker/README.md" \
+    org.label-schema.url="https://github.com/ChrisLynchHPE/oneview-powershell-docker/blob/master/docker/README.md" \
+    org.label-schema.vcs-url="https://github.com/ChrisLynchHPE/oneview-powershell-docker" \
+    org.label-schema.name="oneview-powershell-ubuntu" \
+    org.label-schema.vendor="HewlettPackardEnterprise" \
+    org.label-schema.version=${PS_VERSION} \
+    org.label-schema.schema-version="1.0" \
+    org.label-schema.vcs-ref=${VCS_REF} \
+    org.label-schema.docker.cmd="docker run ${IMAGE_NAME} pwsh -c 'Import-Module HPOneView.${HPE_ONEVIEW_MODULE_SUFFIX}; $PSLibraryVersion'" \
+    org.label-schema.docker.cmd.test="docker run ${IMAGE_NAME} pwsh -c Invoke-Pester" \
+    org.label-schema.docker.cmd.help="docker run ${IMAGE_NAME} pwsh -c 'Get-Help about_HPOneView.${HPE_ONEVIEW_MODULE_SUFFIX}''"
+
+WORKDIR /root
+
+# Import HPEOneview desired version and make it permanent in Powershell Modules directory:
+RUN git clone --branch $HPE_ONEVIEW_BRANCH https://github.com/HewlettPackard/POSH-HPEOneView.git && \
+    mkdir /opt/microsoft/powershell/7/Modules/HPEOneView.${HPE_ONEVIEW_MODULE_SUFFIX} && \
+    cp -R POSH-HPEOneView/* /opt/microsoft/powershell/7/Modules/HPEOneView.${HPE_ONEVIEW_MODULE_SUFFIX}
+
+RUN mkdir -p /root/enterprise-certs
+
+COPY enterprise-certs/ /root/enterprise-certs/
+
+# Powershell load certs
+RUN pwsh \
+    -NoLogo \
+    -NoProfile \
+    -Command " \
+    \$ErrorActionPreference = 'Stop' ; \
+    \$ProgressPreference = 'SilentlyContinue' ; \
+    ForEach (\$file in (Get-ChildItem \$HOME/enterprise-certs -exclude *.md)) {  \
+    Write-Host \"Moving \$(\$file.FileName) to /usr/local/share/ca-certificates\" ; \
+    Copy-Item \$file -Destination \"/usr/local/share/ca-certificates/\$(\$file.BaseName).crt\" -force -confirm:\$false; \
+    }; \
+    update-ca-certificates"
+
+## Remove git and cleanup section (more secure container):
+RUN apt-get -y --purge remove git
+
+# Use PowerShell as the default shell
+# Use array to avoid Docker prepending /bin/sh -c
+CMD [ "pwsh" ]

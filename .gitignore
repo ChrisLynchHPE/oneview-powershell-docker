@@ -3,3 +3,4 @@
 *.cer
 *.crt
 .bak/*
+.DS_Store
