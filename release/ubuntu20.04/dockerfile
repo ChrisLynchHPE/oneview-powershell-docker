@@ -1,15 +1,18 @@
 # Dockerfile originally created by Microsoft from:
 
-# Docker image file that describes an Ubuntu20.04 image with PowerShell installed from Microsoft APT Repo
+# Docker image file that describes an Ubuntu 20.04 image with PowerShell installed from Microsoft APT Repo
 ARG fromTag=20.04
 ARG imageRepo=ubuntu
 FROM ${imageRepo}:${fromTag} AS installer-env
 
 ################################################################################################################
 ## Setup variables for HPE Oneview Versions.
-## Change these to the the desired HPE OneView Major and Minor Versions.
-## Default setting below is 5.50.
-## Current options (as of Aug 2021) are: 5.50, 6.00, 6.10
+## You can Change the HPE_ONEVIEW_MAJOR_VERSION and HPE_ONEVIEW_MINOR_VERSION to the the desired HPE OneView Major and Minor Versions here,
+## which will override the docker command settings AND the Powershell Options. See README for more information.
+## Example: To set the HPE OneView version to 6.10:
+## ARG HPE_ONEVIEW_MAJOR_VERSION=6
+## ARG HPE_ONEVIEW_MINOR_VERSION=10
+## Current options (as of Sept 2021) are: 5.50, 6.00, 6.10
 ## Not using an accepted version will cause the build to fail during the git command:
 ## => [ 6/10] RUN git clone . . . .
 ## For other options see https://github.com/HewlettPackard/POSH-HPEOneView#build-status for proper entries here.
