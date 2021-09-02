@@ -13,14 +13,16 @@ FROM ${imageRepo}:${fromTag} AS installer-env
 ## Not using an accepted version will cause the build to fail during the git command:
 ## => [ 6/10] RUN git clone . . . .
 ## For other options see https://github.com/HewlettPackard/POSH-HPEOneView#build-status for proper entries here.
-ENV HPE_ONEVIEW_MAJOR_VERSION=5
-ENV HPE_ONEVIEW_MINOR_VERSION=50
+ARG HPE_ONEVIEW_MAJOR_VERSION
+ARG HPE_ONEVIEW_MINOR_VERSION
+ENV HPE_ONEVIEW_MAJOR_VERSION ${HPE_ONEVIEW_MAJOR_VERSION}
+ENV HPE_ONEVIEW_MINOR_VERSION ${HPE_ONEVIEW_MINOR_VERSION}
 ## End Variable entries.
 ################################################################################################################
 
 ## Do not change these - this sets up usage in branch pull and folder names and LABELS later
-ENV HPE_ONEVIEW_BRANCH=$HPE_ONEVIEW_MAJOR_VERSION.$HPE_ONEVIEW_MINOR_VERSION
-ENV HPE_ONEVIEW_MODULE_SUFFIX=$HPE_ONEVIEW_MAJOR_VERSION$HPE_ONEVIEW_MINOR_VERSION
+ENV HPE_ONEVIEW_BRANCH ${HPE_ONEVIEW_MAJOR_VERSION}.${HPE_ONEVIEW_MINOR_VERSION}
+ENV HPE_ONEVIEW_MODULE_SUFFIX ${HPE_ONEVIEW_MAJOR_VERSION}${HPE_ONEVIEW_MINOR_VERSION}
 
 # Setup Powershell version
 ARG PS_VERSION=7.1.4
@@ -29,7 +31,7 @@ ARG PS_PACKAGE_URL=https://github.com/PowerShell/PowerShell/releases/download/v$
 
 RUN echo ${PS_PACKAGE_URL}
 
-# Download the Linux package and save it
+# # Download the Linux package and save it
 ADD ${PS_PACKAGE_URL} /tmp/powershell.deb
 
 # Define ENVs for Localization/Globalization

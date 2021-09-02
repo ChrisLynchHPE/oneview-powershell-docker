@@ -1,15 +1,41 @@
-# Desired Local Tag Name
-$ImageTagName='oneview-powershell-ubuntu'
+## Setup Params for HPE Powershell Version
+param(
+        [Parameter(Mandatory=$true,
+        ValueFromPipeline=$false)]
+        [string]$HPEOVVersion,
 
-# Remove previously-built images by this process and build a new one:
+        [Parameter(Mandatory=$true,
+        ValueFromPipeline=$false)]
+        [string]$ImageTagName,
+
+        [Parameter(Mandatory=$false,
+        ValueFromPipeline=$false)]
+        [bool]$KeepPreviousImageTagName
+    )
+
+# Desired Local Tag Name
+# $ImageTagName='oneview-powershell-ubuntu'
+
+# If there is an existing image by that name and user does not want to keep previous image, delete any existing image by this $ImageTagName
 $ImageExists = docker image list | grep $ImageTagName
-Write-Host $ImageExists
-If ($ImageExists) {
+If (($KeepPreviousImageTagName -eq $false) -And ($ImageExists)) {
     docker rmi --force $ImageTagName
 }
 
-# Build the image
-docker build -t $ImageTagName .
+# Ensure proper entry for HPE Powershell Version and run if using a proper version:
+If (($HPEOVVersion -eq '5.50') -Or ($HPEOVVersion -eq '6.00') -Or ($HPEOVVersion -eq '6.10')) {
+    # Setup Parameters for use with docker command.
+    $Env:OVMajorVersion=$HPEOVVersion.split(".") | Select-Object -Index 0
+    $Env:OVMinorVersion=$HPEOVVersion.split(".") | Select-Object -Index 1
 
-# Execute the image, and display the modules PSLibraryVersion global variable
-docker run -ti $ImageTagName
+    # Build the image
+    docker build -t $ImageTagName . --build-arg HPE_ONEVIEW_MAJOR_VERSION=$Env:OVMajorVersion --build-arg HPE_ONEVIEW_MINOR_VERSION=$Env:OVMinorVersion
+
+    # Execute the image
+    docker run -ti $ImageTagName
+
+}
+Else {
+    Write-Host -ForegroundColor Red  "You must enter a Version that is 5.50, 6.00, or 6.10 at this time or the docker build will fail. If there is a newer version please contact bryan.sullins@gmail.com or alter the PS code in the build.ps1 file."
+    Exit
+}
