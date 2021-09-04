@@ -50,8 +50,6 @@ RUN apt-get update \
     && apt-get install -y \
     # less is required for help in powershell
     less \
-    # required for copying down oneview-powershell later
-    git \
     # requied to setup the locale
     locales \
     # required for SSL
@@ -96,10 +94,22 @@ LABEL maintainer="Chris Lynch chris.lynch@hpe.com" \
 
 WORKDIR /root
 
-# Import HPEOneview desired version and make it permanent in Powershell Modules directory:
-RUN git clone --branch $HPE_ONEVIEW_BRANCH https://github.com/HewlettPackard/POSH-HPEOneView.git && \
-    mkdir /opt/microsoft/powershell/7/Modules/HPEOneView.${HPE_ONEVIEW_MODULE_SUFFIX} && \
-    cp -R POSH-HPEOneView/* /opt/microsoft/powershell/7/Modules/HPEOneView.${HPE_ONEVIEW_MODULE_SUFFIX}
+# Set PSGallery to a trusted repository and ensure it is available permanently through docker runs:
+## FYI: PSModulePath location post-install is /usr/local/share/powershell/Modules (All Users).
+RUN pwsh \
+    -NoLogo \
+    -NoProfile \
+    -Command " \
+    \$ErrorActionPreference = 'Stop' ; \
+    \$ProgressPreference = 'SilentlyContinue' ; \
+    Set-PSRepository -Name 'PSGallery' -InstallationPolicy Trusted" && \
+    pwsh \
+    -NoLogo \
+    -NoProfile \
+    -Command " \
+    \$ErrorActionPreference = 'Stop' ; \
+    \$ProgressPreference = 'SilentlyContinue' ; \
+    Install-Module HPEOneView.${HPE_ONEVIEW_MODULE_SUFFIX} -Scope AllUsers"
 
 RUN mkdir -p /root/enterprise-certs
 
@@ -117,9 +127,6 @@ RUN pwsh \
     Copy-Item \$file -Destination \"/usr/local/share/ca-certificates/\$(\$file.BaseName).crt\" -force -confirm:\$false; \
     }; \
     update-ca-certificates"
-
-## Remove git and cleanup section (more secure container):
-RUN apt-get -y --purge remove git
 
 # Use PowerShell as the default shell
 # Use array to avoid Docker prepending /bin/sh -c
